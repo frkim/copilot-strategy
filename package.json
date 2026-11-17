@@ -1,0 +1,24 @@
+{
+  "name": "copilot-strategy-deck",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Microsoft Copilot strategy slide deck built with Marp",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "marp deck/copilot-strategy.md --html --theme-set deck/themes -o dist/index.html",
+    "postbuild": "node scripts/copy-assets.mjs",
+    "build:pdf": "marp deck/copilot-strategy.md --pdf --html --allow-local-files --theme-set deck/themes -o dist/copilot-strategy.pdf",
+    "build:pptx": "marp deck/copilot-strategy.md --pptx --html --allow-local-files --theme-set deck/themes -o dist/copilot-strategy.pptx",
+    "build:all": "npm run build && npm run build:pdf",
+    "start": "marp --server --html --theme-set deck/themes deck",
+    "serve": "npm run start",
+    "watch": "marp deck/copilot-strategy.md --watch --html --theme-set deck/themes -o dist/index.html"
+  },
+  "devDependencies": {
+    "@marp-team/marp-cli": "^4.5.1"
+  }
+}
