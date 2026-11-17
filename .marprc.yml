@@ -1,0 +1,5 @@
+# Marp CLI configuration (auto-loaded by marp-cli). Keep in sync with the npm scripts in package.json.
+html: true
+themeSet:
+  - ./deck/themes
+allowLocalFiles: true

@@ -1,0 +1,93 @@
+name: Build and deploy deck
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'deck/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.marprc.yml'
+      - 'scripts/**'
+      - '.github/workflows/deploy-deck.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'deck/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.marprc.yml'
+      - 'scripts/**'
+      - '.github/workflows/deploy-deck.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# PR builds get their own group so they never queue behind (or displace) a Pages deployment.
+concurrency:
+  group: ${{ github.event_name == 'pull_request' && format('deck-pr-{0}', github.ref) || 'pages' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build HTML and PDF
+        run: |
+          # Google Chrome is preinstalled on ubuntu-latest; point marp-cli at it explicitly.
+          export CHROME_PATH="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || true)"
+          echo "Using browser: ${CHROME_PATH:-auto-detect}"
+          npm run build:all
+        env:
+          # GitHub-hosted Ubuntu runners restrict unprivileged user namespaces; disable the Chrome sandbox.
+          CHROME_NO_SANDBOX: 'true'
+
+      - name: Verify output
+        run: |
+          test -f dist/index.html
+          test -f dist/copilot-strategy.pdf
+          ls -la dist
+
+      - name: Upload PDF artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: copilot-strategy-pdf
+          path: dist/copilot-strategy.pdf
+          if-no-files-found: error
+
+      - name: Configure Pages
+        if: github.event_name != 'pull_request'
+        uses: actions/configure-pages@v6
+
+      - name: Upload Pages artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
